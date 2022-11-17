@@ -4,12 +4,12 @@ Following the Genome in a Bottle project example, we sequenced one Charolais hei
 
 The publication about these data is available here : xxxxxxxxxxxxxxx.publication.com
 
-All the data produced from this projet are available under the the BioProject PRJEB55064 at EMBL/EBI ENA.
+All the data produced from this projet are available under the the BioProject PRJEB55064 at EMBL/EBI ENA (https://www.ebi.ac.uk/ena/browser/view/PRJEB55064).
 
-Our reference assembly is also available at EMBLI/EBI ENA under the same BioProject with accession ERZ14208621.
+Our reference assembly is also available at EMBLI/EBI ENA under the same BioProject with accession ERZ14208621 (https://www.ebi.ac.uk/ena/browser/view/GCA_947034695).
 
-Others produced assemblies are available under the DOI:10.57745/73DGRC.
+Others produced assemblies are available at : https://doi.org/10.57745/73DGRC
 
-Our phased assemblies are available under the DOI:10.57745/40STPR
+Our phased assemblies are available at : https://doi.org/10.57745/40STPR
 
-Our Short Variation detections are available under the DOI:10.57745/H4QHB1
+Our Structural Variation detections are available at :  https://doi.org/10.57745/H4QHB1
