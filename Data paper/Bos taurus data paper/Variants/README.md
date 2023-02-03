@@ -29,11 +29,5 @@ samtools sort -o happlotype2.sorted.bam  happlotype2.sam
 svim-asm haploid OUTDIR happlotype1.sorted.bam happlotype2.sorted.bam reference.fa
 ```
 
-**Associated vcf files**
-
-- Variants detected using PacBio HiFi reads (40X) :   
-  https://entrepot.recherche.data.gouv.fr/file.xhtml?persistentId=doi:10.57745/7UB49W&version=1.0
-- Variants detected using ONTeads (42X) :   
-  https://entrepot.recherche.data.gouv.fr/file.xhtml?persistentId=doi:10.57745/QVUJCA&version=1.0
-
+The associated vcf files are available here : https://doi.org/10.57745/H4QHB1
 
