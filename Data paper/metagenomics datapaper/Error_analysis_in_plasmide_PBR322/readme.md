@@ -5,7 +5,7 @@ To fill when the data will be uploaded
 
 # Plasmid reference sequence 
 
-The plasmid reference sequence is needed for detecting errors in amplicon sequences. You can locate the plasmid sequence on the NEB website via the following link:(NEB Plasmid Reference Sequence.)[https://international.neb.com/-/media/nebus/page-images/tools-and-resources/interactive-tools/dna-sequences-and-maps/text-documents/pbr322fsa.txt?rev=b1ef8762bbe9431886127f019c09df5b&hash=355F5D1EE26BAC8271AA68193BF15F36]
+The plasmid reference sequence is needed for detecting errors in amplicon sequences. You can locate the plasmid sequence on the NEB website via the following link:[NEB Plasmid Reference Sequence.](https://international.neb.com/-/media/nebus/page-images/tools-and-resources/interactive-tools/dna-sequences-and-maps/text-documents/pbr322fsa.txt?rev=b1ef8762bbe9431886127f019c09df5b&hash=355F5D1EE26BAC8271AA68193BF15F36)
 
 
 # Error analysis of the polymerases
