@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python
+  - bamnostic
+  - pandas
+  - numpy
+  - plotly
+  - jupyter
+  - samtools
+  - minimap2
