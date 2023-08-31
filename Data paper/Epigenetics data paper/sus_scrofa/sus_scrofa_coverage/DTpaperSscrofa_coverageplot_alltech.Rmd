@@ -1,0 +1,240 @@
+---
+title: "Compare bisulfite calls vs EMSEQ vs MEGALODON-Sscrofa"
+author: "P_Terzian"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+  theme: architect
+highlight: github
+---
+
+
+Commande megalodon
+```
+megalodon fetch_CM003781.1_fast5/ \
+    --outputs basecalls mods \
+    --reference CM003781.1.fa \
+    --mod-motif Z CG 0 --devices 0 --processes 20 \
+    --verbose-read-progress 3 \
+    --guppy-server-path /usr/bin/guppy_basecall_server \
+    --overwrite
+```
+
+
+```{r, include=FALSE}
+library(data.table)
+library(Biostrings)
+library(ggplot2)
+library(DT)
+# library(Rgb)
+# library(cowplot)
+# library(rlist)
+# library(scales)
+
+#source('~/Documents/axis2-epigenectics/script_BSseq/BS_process_functions.R')
+#source('plot_functions_aroundTSS.R')
+
+```
+
+```{r}
+
+getCpGcontextInref <- function(reference, patternToFind = "CG"){
+  
+  list_CpGTable <- lapply(seq_along(reference), function(x){
+  
+      currentChrmName <- strsplit(names(reference[x]), " ")[[1]][1]
+  
+        chrm_pattern_table <- as.data.frame(matchPattern(pattern = patternToFind, subject = reference[[x]])@ranges)
+  
+      chrm_pattern_table$chrm <-rep(currentChrmName, nrow(chrm_pattern_table))
+      
+      return(chrm_pattern_table)
+
+  })
+AllChrmCpGTable <- do.call(rbind, list_CpGTable)
+  
+
+}
+
+```
+
+
+### Load genome reference
+```{r}
+
+full_sscrofa <- readDNAStringSet("/work2/project/seqoccin/data/species/sus_scrofa/Sscrofa11.1/GCA_000003025.6_Sscrofa11.1_genomic.fa")
+
+names_chrm <- sapply(seq_along(full_sscrofa), function(x){
+  
+      currentChrmName <- strsplit(names(full_sscrofa[x]), " ")[[1]][1]
+      
+})
+
+
+full_sscrofa_onlychrm <- full_sscrofa[grep(x = names_chrm, "^CM")]
+
+
+CG_pos_fullreference <- getCpGcontextInref(full_sscrofa)
+setDT(CG_pos_fullreference)
+setkey(CG_pos_fullreference, chrm, start)
+
+### Compute numbers of sites per chromosome
+nb_CG_per_chrm <- as.data.table(table(CG_pos_fullreference$chrm))
+
+colnames(nb_CG_per_chrm) <- c("chrm", "position")
+
+nb_CG_per_chrm$type <- "reference"
+```
+
+
+# LOAD megalodon both runs results
+```{r}
+mega_results_run1 <- fread(file = "/work2/project/seqoccin/epigenetique/sus_scrofa/Reference_father/megalodon_calling/sus_scrofa_ref_PAD93746/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "coverage", "strand", "start2", "stop2", "Idonknow", "coverage", "fraction")
+hist(mega_results_run1$fraction)
+setkey(mega_results_run1, chrm, start)
+mega_results_run1 <- mega_results_run1[strand == "+", start := start + 1]
+mega_merged1 <- mega_results_run1[, .(coverage = sum(coverage), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged1, chrm, start)
+
+mega_results_run2 <- fread(file = "/work2/project/seqoccin/epigenetique/sus_scrofa/Reference_father/megalodon_calling/sus_scrofa_ref_PAE20806/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "coverage", "strand", "start2", "stop2", "Idonknow", "coverage", "fraction")
+setkey(mega_results_run2, chrm, start)
+mega_results_run2 <- mega_results_run2[strand == "+", start := start + 1]
+mega_merged2 <- mega_results_run2[, .(coverage = sum(coverage), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged2, chrm, start)
+
+megapull <- rbind(mega_merged1, mega_merged2)
+setkey(megapull, chrm, start)
+megapull <- megapull[, .(count = sum(coverage), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(megapull, chrm, start)
+
+megapull_uncomplete <- megapull[CG_pos_fullreference, all = T]
+megapull_uncomplete[is.na(count), count := 0]
+
+rm(list = c("mega_results_run1", "mega_merged1", "mega_results_run2", "mega_merged2"))
+
+ncount <- c(nrow(megapull_uncomplete)
+,nrow(megapull_uncomplete[count > 5])
+,nrow(megapull_uncomplete[count > 10])
+,nrow(megapull_uncomplete[count > 15])
+,nrow(megapull_uncomplete[count > 20])
+,nrow(megapull_uncomplete[count > 25])
+,nrow(megapull_uncomplete[count > 30])
+,nrow(megapull_uncomplete[count > 35])
+,nrow(megapull_uncomplete[count > 40]))
+
+val <- c(1,5,10,15,20,25,30,35,40)
+
+df <- data.frame(seuil = val, n =  ncount)
+p<-ggplot(data=df, aes(x=seuil, y=n)) +
+  geom_bar(stat="identity")
+
+
+p
+```
+
+
+
+
+
+### Load bisulfite results
+```{r}
+## Load bismark cytosine_report
+
+pathToFiles = "/work2/project/seqoccin/epigenetique/CelineV/Project_A2P1b-PlaGe-Porc.1470/Pool_run_bisulfite_porc_ref/MethylSeq-nfcore/Sscrofa_per-lane_param-zymo/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    
+  
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+    
+    return(bedcoverageFile)
+    
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+merged_study_DT <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start)]
+
+merged_study_DT[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT[, cov := Cyt + Thy ]
+
+rm(study_DT)
+gc()
+```
+
+
+### Load EM-Seq results
+```{r}
+##Load bismark cytosine_report
+
+pathToFiles = "/work/project/seqoccin/epigenetique/CelineV/Project_A2P1b-PlaGe-Porc.1470/Run_Emseq_porc_ref.18919/MethylSeq-nfcore/Sus_scrofa_param-em-seq/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    
+  
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+    
+    return(bedcoverageFile)
+    
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+merged_study_DT_EMSEQ <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start)]
+
+merged_study_DT_EMSEQ[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT_EMSEQ[, cov := Cyt + Thy ]
+
+rm(study_DT)
+gc()
+
+##check depth of coverage :
+mean(merged_study_DT_EMSEQ$cov)
+
+setkey(merged_study_DT_EMSEQ, chrm, start)
+
+```
+
+
+### Plot coverage for ONT, bisulfite and EM-Seq
+```{r}
+
+##Create table to plot overlay
+
+DT <- data.table(coverage = c(megapull_uncomplete$count,merged_study_DT$cov,merged_study_DT_EMSEQ$cov), type = c(rep("ONT", nrow(megapull_uncomplete)), rep("WGBS", nrow(merged_study_DT)), rep("EM-Seq", nrow(merged_study_DT_EMSEQ))))
+
+head(DT)
+tail(DT)
+```
+
+```{r}
+
+##density plot
+
+ggplot(DT, aes(x=coverage, group = type, color=type, fill = type)) +
+  geom_density(aes(y=..count..), position = "identity", alpha=0.2, adjust=3) +
+  labs(title = "Per-site CpG coverage distribution") +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand=c(0,0)) +
+  scale_x_continuous(name="CpG coverage", breaks=seq(0,100,10), expand=c(0,0), limits=c(0,100)) +
+  scale_fill_manual(breaks = c("ONT", "EM-Seq", "WGBS"), values=c("#F8766D", "#7CAE00" , "#00BFC4")) +
+  scale_color_manual(breaks = c("ONT", "EM-Seq", "WGBS"), values=c("#F8766D", "#7CAE00" , "#00BFC4")) +
+  theme_bw()
+ 
+
+ggsave("DTpaper_density_coverage_susscrofa_prommod.pdf")
+
+```

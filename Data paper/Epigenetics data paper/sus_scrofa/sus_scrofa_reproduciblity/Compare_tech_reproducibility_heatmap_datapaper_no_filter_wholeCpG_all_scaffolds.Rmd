@@ -1,0 +1,314 @@
+---
+title: "Compare bisulfite calls vs EMSEQ vs MEGALODON"
+author: "P_Terzian"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+  theme: architect
+highlight: github
+---
+
+
+```{r, include=FALSE}
+library(data.table)
+library(Biostrings)
+library(ggplot2)
+library(DT)
+library(reshape2)
+
+
+```
+
+```{r}
+
+getCpGcontextInref <- function(reference, patternToFind = "CG"){
+  
+  list_CpGTable <- lapply(seq_along(reference), function(x){
+  
+      currentChrmName <- strsplit(names(reference[x]), " ")[[1]][1]
+  
+        chrm_pattern_table <- as.data.frame(matchPattern(pattern = patternToFind, subject = reference[[x]])@ranges)
+  
+      chrm_pattern_table$chrm <-rep(currentChrmName, nrow(chrm_pattern_table))
+      
+      return(chrm_pattern_table)
+
+  })
+AllChrmCpGTable <- do.call(rbind, list_CpGTable)
+  
+
+}
+
+```
+
+
+### Load genome reference
+```{r}
+
+sus_scrofa <- readDNAStringSet("/work/project/seqoccin/epigenetique/sus_scrofa/GCA_000003025.6_Sscrofa11.1_genomic.fa")
+#chrm1_japonica$`CM003781.1 Coturnix japonica isolate 7356 chromosome 1, whole genome shotgun sequence`[CM003781[strand == "+"]$start]
+
+names_chrm <- sapply(seq_along(sus_scrofa), function(x){
+  
+      currentChrmName <- strsplit(names(sus_scrofa[x]), " ")[[1]][1]
+      
+})
+
+
+sus_scrofa_onlychrm <- sus_scrofa[grep(x = names_chrm, "^CM")]
+
+
+
+CG_pos_fullreference <- getCpGcontextInref(sus_scrofa_onlychrm)
+CG_pos_fullreference_withscaf <- getCpGcontextInref(sus_scrofa)
+nrow(CG_pos_fullreference_withscaf)
+
+rm(sus_scrofa)
+gc()
+
+setDT(CG_pos_fullreference)
+setkey(CG_pos_fullreference, chrm, start)
+
+### Compute numbers of sites per chromosome
+nb_CG_per_chrm <- as.data.table(table(CG_pos_fullreference$chrm))
+
+colnames(nb_CG_per_chrm) <- c("chrm", "position")
+
+nb_CG_per_chrm$type <- "reference"
+```
+
+
+### LOAD megalodon both runs results
+```{r}
+mega_results_run1 <- fread(file = "/work/project/seqoccin/epigenetique/sus_scrofa/Reference_father/megalodon_calling/sus_scrofa_ref_PAD93746/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "coverage", "strand", "start2", "stop2", "Idonknow", "coverage", "fraction")
+hist(mega_results_run1$fraction)
+setkey(mega_results_run1, chrm, start)
+mega_results_run1 <- mega_results_run1[strand == "+", start := start + 1]
+mega_merged1 <- mega_results_run1[, .(coverage = sum(coverage), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged1, chrm, start)
+mega_merged1 <- mega_merged1[coverage > 5 & coverage < 100]
+nrow(mega_merged1)
+
+mega_results_run2 <- fread(file = "/work/project/seqoccin/epigenetique/sus_scrofa/Reference_father/megalodon_calling/sus_scrofa_ref_PAE20806/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "coverage", "strand", "start2", "stop2", "Idonknow", "coverage", "fraction")
+setkey(mega_results_run2, chrm, start)
+mega_results_run2 <- mega_results_run2[strand == "+", start := start + 1]
+mega_merged2 <- mega_results_run2[, .(coverage = sum(coverage), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged2, chrm, start)
+mega_merged2 <- mega_merged2[coverage > 5 & coverage < 100]
+nrow(mega_merged2)
+
+setkey(mega_merged1, chrm, start)
+setkey(mega_merged2, chrm, start)
+
+
+rm(list = c("mega_results_run1", "mega_results_run2"))
+
+print("this works 1")
+```
+
+
+
+
+### Load bismark cytosine_report POOLED
+```{r}
+pathToFiles = "/work2/project/seqoccin/epigenetique/CelineV/Project_A2P1b-PlaGe-Porc.1470/Pool_run_bisulfite_porc_ref/MethylSeq-nfcore/Sscrofa_per-lane_param-zymo/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+wgbsfiletype <- c('wgbs1', 'wgbs2', 'wgbs3', 'novaseq')
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+    bedcoverageFile$type <- wgbsfiletype[x]
+    return(bedcoverageFile)
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+merged_study_DT_typed <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start, type)]
+
+merged_study_DT_typed <- merged_study_DT_typed[Cyt != 0 | Thy != 0]
+
+
+merged_study_DT_typed[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT_typed[, cov := Cyt + Thy ]
+
+
+rm(study_DT)
+gc()
+
+
+wgbs1 <- merged_study_DT_typed[cov > 5 & cov < 100 & type == "wgbs1"][]
+wgbs2 <- merged_study_DT_typed[cov > 5 & cov < 100 & type == "wgbs2"][]
+wgbs3 <- merged_study_DT_typed[cov > 5 & cov < 100 & type == "wgbs3"][]
+novaseq <- merged_study_DT_typed[cov > 5 & cov < 100 & type == "novaseq"][]
+
+
+nrow(wgbs1)
+nrow(wgbs2)
+nrow(wgbs3)
+nrow(novaseq)
+
+setkey(wgbs1, chrm, start)
+setkey(wgbs2, chrm, start)
+setkey(wgbs3, chrm, start)
+setkey(novaseq)
+
+rm(merged_study_DT_typed)
+gc()
+
+
+```
+
+
+
+### Load EM-Seq results
+```{r}
+#Load bismark cytosine_report
+
+pathToFiles = "/work/project/seqoccin/epigenetique/CelineV/Project_A2P1b-PlaGe-Porc.1470/Run_Emseq_porc_ref.18919/MethylSeq-nfcore/Sus_scrofa_param-em-seq/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    
+  
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+    
+    return(bedcoverageFile)
+    
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+
+
+merged_study_DT_EMSEQ <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start)]
+
+merged_study_DT_EMSEQ <- merged_study_DT_EMSEQ[Cyt != 0 | Thy != 0]
+
+
+merged_study_DT_EMSEQ[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT_EMSEQ[, cov := Cyt + Thy ]
+
+
+rm(study_DT)
+gc()
+
+
+##check depth of coverage :
+mean(merged_study_DT_EMSEQ$cov)
+
+
+merged_study_DT_EMSEQ <- merged_study_DT_EMSEQ[cov < 100 & cov > 5]
+
+
+setkey(merged_study_DT_EMSEQ, chrm, start)
+
+```
+
+
+
+
+### Compare megalodon run with themself and BS and Emseq
+```{r}
+
+#Megapooled vs BSpooled
+#Mega1 vs Mega2
+mega1vmega2 <- mega_merged1[mega_merged2, nomatch=0]
+mega1vemseq <- mega_merged1[merged_study_DT_EMSEQ, nomatch=0]
+mega2vemseq <- mega_merged2[merged_study_DT_EMSEQ, nomatch=0]
+
+
+
+##wgbs1
+wgbs1vwgbs2     <- wgbs1[wgbs2, nomatch=0]
+wgbs1vwgbs3     <- wgbs1[wgbs3, nomatch=0]
+wgbs1vmega1     <- wgbs1[mega_merged1, nomatch=0]
+wgbs1vmega2     <- wgbs1[mega_merged2, nomatch=0]
+wgbs1vEmseq     <- wgbs1[merged_study_DT_EMSEQ, nomatch=0]
+wgbs1vENovaseq  <- wgbs1[novaseq, nomatch=0]
+
+##wgbs2
+wgbs2vwgbs3     <- wgbs2[wgbs3, nomatch=0]
+wgbs2vmega1     <- wgbs2[mega_merged1, nomatch=0]
+wgbs2vmega2     <- wgbs2[mega_merged2, nomatch=0]
+wgbs2vEmseq     <- wgbs2[merged_study_DT_EMSEQ, nomatch=0]
+wgbs2vENovaseq  <- wgbs2[novaseq, nomatch=0]
+
+##wgbs3
+wgbs3vmega1     <- wgbs3[mega_merged1, nomatch=0]
+wgbs3vmega2     <- wgbs3[mega_merged2, nomatch=0]
+wgbs3vEmseq     <- wgbs3[merged_study_DT_EMSEQ, nomatch=0]
+wgbs3vENovaseq  <- wgbs3[novaseq, nomatch=0]
+
+
+##novaseq
+novaseqvmega1     <- novaseq[mega_merged1, nomatch=0]
+novaseqvmega2     <- novaseq[mega_merged2, nomatch=0]
+novaseqvEmseq     <- novaseq[merged_study_DT_EMSEQ, nomatch=0]
+
+cormega1vmega2    <- cor(mega1vmega2$fraction, mega1vmega2$i.fraction)
+cormega1vemseq    <- cor(mega1vemseq$fraction, mega1vemseq$i.fraction)
+cormega2vemseq    <- cor(mega2vemseq$fraction, mega2vemseq$i.fraction)
+
+corwgbs1vwgbs2    <- cor(wgbs1vwgbs2$fraction, wgbs1vwgbs2$i.fraction)
+corwgbs1vwgbs3    <- cor(wgbs1vwgbs3$fraction, wgbs1vwgbs3$i.fraction)
+corwgbs2vwgbs3    <- cor(wgbs2vwgbs3$fraction, wgbs2vwgbs3$i.fraction)
+corwgbs1vmega1    <- cor(wgbs1vmega1$fraction, wgbs1vmega1$i.fraction)
+corwgbs1vmega2    <- cor(wgbs1vmega2$fraction, wgbs1vmega2$i.fraction)
+corwgbs1vEmseq    <- cor(wgbs1vEmseq$fraction, wgbs1vEmseq$i.fraction)
+corwgbs2vmega1    <- cor(wgbs2vmega1$fraction, wgbs2vmega1$i.fraction)
+corwgbs2vmega2    <- cor(wgbs2vmega2$fraction, wgbs2vmega2$i.fraction)
+corwgbs2vEmseq    <- cor(wgbs2vEmseq$fraction, wgbs2vEmseq$i.fraction)
+corwgbs3vmega1    <- cor(wgbs3vmega1$fraction, wgbs3vmega1$i.fraction)
+corwgbs3vmega2    <- cor(wgbs3vmega2$fraction, wgbs3vmega2$i.fraction)
+corwgbs3vEmseq    <- cor(wgbs3vEmseq$fraction, wgbs3vEmseq$i.fraction)
+
+corwgbs1vENovaseq <- cor(wgbs1vENovaseq$fraction,wgbs1vENovaseq$i.fraction)
+corwgbs2vENovaseq <- cor(wgbs2vENovaseq$fraction,wgbs2vENovaseq$i.fraction)
+corwgbs3vENovaseq <- cor(wgbs3vENovaseq$fraction,wgbs3vENovaseq$i.fraction)
+cornovaseqvmega1  <- cor(novaseqvmega1$fraction,novaseqvmega1$i.fraction)
+cornovaseqvmega2  <- cor(novaseqvmega2$fraction,novaseqvmega2$i.fraction)
+cornovaseqvEmseq  <- cor(novaseqvEmseq$fraction,novaseqvEmseq$i.fraction)
+
+```
+
+
+### Compare WGBS pooled with Emseq
+```{r}
+
+
+colwgbs1    <- c(1, corwgbs1vwgbs2, corwgbs1vwgbs3, corwgbs1vENovaseq, corwgbs1vEmseq, corwgbs1vmega1, corwgbs1vmega2)
+
+colwgbs2    <- c(corwgbs1vwgbs2,  1, corwgbs2vwgbs3, corwgbs2vENovaseq, corwgbs2vEmseq,  corwgbs2vmega1,   corwgbs2vmega2)
+
+colwgbs3    <- c(corwgbs1vwgbs3,  corwgbs2vwgbs3,  1, corwgbs3vENovaseq, corwgbs3vEmseq,  corwgbs3vmega1,  corwgbs3vmega2)
+
+novaseq     <- c(corwgbs1vENovaseq, corwgbs2vENovaseq, corwgbs3vENovaseq,  1, cornovaseqvEmseq, cornovaseqvmega1, cornovaseqvmega2) 
+
+colemseq    <- c(corwgbs1vEmseq,  corwgbs2vEmseq,  corwgbs3vEmseq, cornovaseqvEmseq, 1, cormega1vemseq, cormega2vemseq)
+
+colmega1    <- c(corwgbs1vmega1, corwgbs2vmega1,  corwgbs3vmega1, cornovaseqvmega1, cormega1vemseq, 1, cormega1vmega2)
+
+colmega2    <- c(corwgbs1vmega2,  corwgbs2vmega2,  corwgbs3vmega2, cornovaseqvmega2, cormega2vemseq,  cormega1vmega2,  1)
+
+
+
+
+correlation_matrix <- data.frame(hiseq1 = colwgbs1, hiseq2 = colwgbs2, hiseq3 = colwgbs3, novaseq = novaseq, emseq = colemseq, ont1 = colmega1, ont2 =colmega2)
+rownames(correlation_matrix) <- c("hiseq1", "hiseq2","hiseq3", "novaseq", "emseq", "ont1", "ont2")
+
+fwrite(x = round(correlation_matrix, 2), file = "scrofa_Correlation_reproducibilty_matrix_heatmaptechdatapaper_wholeCpG.tsv", sep = "\t")
+
+```
