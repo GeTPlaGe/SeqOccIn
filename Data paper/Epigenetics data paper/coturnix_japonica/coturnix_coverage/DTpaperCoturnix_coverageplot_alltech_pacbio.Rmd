@@ -1,0 +1,264 @@
+---
+title: "Compare bisulfite calls vs EMSEQ vs MEGALODON"
+author: "P_Terzian"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+  theme: architect
+highlight: github
+---
+
+
+```{r, include=FALSE}
+library(data.table)
+library(Biostrings)
+library(ggplot2)
+library(DT)
+
+```
+
+```{r}
+
+getCpGcontextInref <- function(reference, patternToFind = "CG"){
+  
+  list_CpGTable <- lapply(seq_along(reference), function(x){
+  
+      currentChrmName <- strsplit(names(reference[x]), " ")[[1]][1]
+  
+        chrm_pattern_table <- as.data.frame(matchPattern(pattern = patternToFind, subject = reference[[x]])@ranges)
+  
+      chrm_pattern_table$chrm <-rep(currentChrmName, nrow(chrm_pattern_table))
+      
+      return(chrm_pattern_table)
+
+  })
+AllChrmCpGTable <- do.call(rbind, list_CpGTable)
+  
+
+}
+
+```
+
+
+### Load genome reference
+```{r}
+
+full_japonica <- readDNAStringSet("/work/project/seqoccin/data/species/coturnix_japonica/Coturnix_japonica_2.0/GCA_001577835.1_Coturnix_japonica_2.0_genomic.fa")
+#chrm1_japonica$`CM003781.1 Coturnix japonica isolate 7356 chromosome 1, whole genome shotgun sequence`[CM003781[strand == "+"]$start]
+
+names_chrm <- sapply(seq_along(full_japonica), function(x){
+  
+      currentChrmName <- strsplit(names(full_japonica[x]), " ")[[1]][1]
+      
+})
+
+
+full_japonica_onlychrm <- full_japonica[grep(x = names_chrm, "^CM")]
+
+CG_pos_fullreference <- getCpGcontextInref(full_japonica)
+setDT(CG_pos_fullreference)
+setkey(CG_pos_fullreference, chrm, start)
+
+```
+
+
+# LOAD megalodon both runs results
+```{r}
+mega_results_run1 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PromethION_PAE47187_Promethion_PAE47965_natifs/megalodon_calling/2022_last_calls_with_bam_fastq_mod/coturnix_ref_PAE47187/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+setkey(mega_results_run1, chrm, start)
+mega_results_run1 <- mega_results_run1[strand == "+", start := start + 1]
+mega_merged1 <- mega_results_run1[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged1, chrm, start)
+
+
+mega_results_run2 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PromethION_PAE47187_Promethion_PAE47965_natifs/megalodon_calling/2022_last_calls_with_bam_fastq_mod/coturnix_ref_PAE47965/modified_bases.5mC.bed", stringsAsFactors = FALSE)
+colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+setkey(mega_results_run2, chrm, start)
+mega_results_run2 <- mega_results_run2[strand == "+", start := start + 1]
+mega_merged2 <- mega_results_run2[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(mega_merged2, chrm, start)
+
+megapull <- rbind(mega_merged1, mega_merged2)
+setkey(megapull, chrm, start)
+megapull <- megapull[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+
+megapull_uncomplete <- megapull[CG_pos_fullreference, all = T]
+megapull_uncomplete[is.na(count), count := 0]
+
+rm(mega_merged1)
+rm(mega_merged2)
+gc()
+
+
+ncount <- c(nrow(megapull_uncomplete)
+,nrow(megapull_uncomplete[count > 5])
+,nrow(megapull_uncomplete[count > 10])
+,nrow(megapull_uncomplete[count > 15])
+,nrow(megapull_uncomplete[count > 20])
+,nrow(megapull_uncomplete[count > 25])
+,nrow(megapull_uncomplete[count > 30])
+,nrow(megapull_uncomplete[count > 35])
+,nrow(megapull_uncomplete[count > 40]))
+
+val <- c(1,5,10,15,20,25,30,35,40)
+
+df <- data.frame(seuil = val, n =  ncount)
+p<-ggplot(data=df, aes(x=seuil, y=n)) +
+  geom_bar(stat="identity")
+
+
+p
+```
+
+
+
+# LOAD Pacbio run1 & 2 result
+```{r}
+primrose_results_run1 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PacBio/reference_coturnix/analysis/run_200820_203625/m64122_200820_203625.ccs.bedmethyl", stringsAsFactors = FALSE)
+colnames(primrose_results_run1) <- c("chrm", "start", "stop", "name", "score", "strand", "start2", "stop2", "Idonknow", "count", "fraction", "cannonical", "modified", "filtered")
+hist(primrose_results_run1$fraction)
+setkey(primrose_results_run1, chrm, start)
+primrose_results_run1 <- primrose_results_run1[strand == "+", start := start + 1]
+primrose_merged1 <- primrose_results_run1[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(primrose_merged1, chrm, start)
+
+
+primrose_results_run2 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PacBio/reference_coturnix/analysis/run_201001_030231/m64122_201001_030231.ccs.bedmethyl", stringsAsFactors = FALSE)
+colnames(primrose_results_run2) <- c("chrm", "start", "stop", "name", "score", "strand", "start2", "stop2", "Idonknow", "count", "fraction", "cannonical", "modified", "filtered")
+hist(primrose_results_run2$fraction)
+setkey(primrose_results_run2, chrm, start)
+primrose_results_run2 <- primrose_results_run2[strand == "+", start := start + 1]
+primrose_merged2 <- primrose_results_run2[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(primrose_merged2, chrm, start)
+
+
+primrose_merged <- rbind(primrose_merged1, primrose_merged2)
+primrose_merged <- primrose_merged[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
+setkey(primrose_merged, chrm, start)
+
+primrose_uncomplete <- primrose_merged[CG_pos_fullreference, all = T]
+primrose_uncomplete[is.na(count), count := 0]
+
+
+setkey(primrose_uncomplete, chrm, start)
+
+
+nrow(primrose_uncomplete)
+
+
+rm(list = c("primrose_results_run1", "primrose_merged1", "primrose_results_run2", "primrose_merged2"))
+
+
+```
+
+
+### Load bisulfite results
+```{r}
+## Load bismark cytosine_report
+
+pathToFiles = "/work/project/seqoccin/epigenetique/CelineV/Project_A2P1a-PlaGe-Caille.1447/Pool_run_bisulfite/MethylSeq-nfcore/coturnix_per-lane_param-zymo/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    
+  
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+
+    print(nrow(bedcoverageFile))
+    
+    return(bedcoverageFile)
+    
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+merged_study_DT <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start)]
+
+merged_study_DT[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT[, cov := Cyt + Thy ]
+
+rm(study_DT)
+gc()
+
+##check depth of coverage :
+mean(merged_study_DT$cov)
+
+```
+
+
+### Load EM-Seq results
+```{r}
+## Load bismark cytosine_report
+
+pathToFiles = "/work/project/seqoccin/epigenetique/CelineV/Project_A2P1a-PlaGe-Caille.1447/Run_Emseq_caille_ref.18827/MethylSeq-nfcore/Coturnix_japonica_other-param/results/bismark_methylation_calls/stranded_CpG_report/"
+
+list_files <- list.files(path = pathToFiles)
+
+study_DT <- lapply(1:length(list_files), function(x){
+    
+    
+  
+    bedcoverageFile           <- fread(file = paste(pathToFiles, list_files[x], sep=""))
+    colnames(bedcoverageFile) <- c("chrm", "start", "strand", "Cyt", "Thy", "di_context", "tri_context")
+    
+    print(nrow(bedcoverageFile))
+
+    return(bedcoverageFile)
+    
+  })
+
+study_DT    <- do.call(rbind, study_DT)
+
+
+study_DT <- study_DT[strand == "-", start := start - 1]
+
+merged_study_DT_EMSEQ <- study_DT[, .(Cyt = sum(Cyt), Thy = sum(Thy)), by = .(chrm, start)]
+
+merged_study_DT_EMSEQ[, fraction := Cyt / (Cyt + Thy)]
+merged_study_DT_EMSEQ[, cov := Cyt + Thy ]
+
+
+rm(study_DT)
+gc()
+
+
+##check depth of coverage :
+mean(merged_study_DT_EMSEQ$cov)
+```
+
+
+### Plot coverage for ONT, bisulfite and EM-Seq
+```{r}
+
+##Create table to plot overlay
+
+DT <- data.table(coverage = c(megapull_uncomplete$count,merged_study_DT$cov,merged_study_DT_EMSEQ$cov, primrose_uncomplete$count), type = c(rep("ONT", nrow(megapull_uncomplete)), rep("WGBS", nrow(merged_study_DT)), rep("EM-Seq", nrow(merged_study_DT_EMSEQ)), rep("PacBio", nrow(primrose_uncomplete))))
+
+head(DT)
+tail(DT)
+
+```
+
+```{r}
+
+##density plot
+
+ggplot(DT, aes(x=coverage, group = type, color=type, fill = type)) +
+  geom_density(aes(y=..count..), position = "identity", alpha=0.2, adjust=2) +
+  labs(title = "Per-site CpG coverage distribution") +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand=c(0,0)) +
+  scale_x_continuous(name="CpG coverage", breaks=seq(0,100,10), expand=c(0,0), limits=c(0,100)) +
+  scale_fill_manual(breaks = c("ONT", "EM-Seq", "WGBS", "PacBio"), values=c("#F8766D", "#7CAE00" , "#00BFC4", "#C77CFF")) +
+  scale_color_manual(breaks = c("ONT", "EM-Seq", "WGBS", "PacBio"), values=c("#F8766D", "#7CAE00" , "#00BFC4", "#C77CFF")) +
+  theme_bw()
+  
+ggsave("DTpaper_density_coverage_coturnix_prommod.pdf")
+
+```
