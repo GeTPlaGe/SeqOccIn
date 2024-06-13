@@ -1,0 +1,5 @@
+pooledWgbs	Emseq	pooledONT	hifipooled
+1	0.92	0.87	0.8
+0.92	1	0.93	0.86
+0.87	0.93	1	0.83
+0.8	0.86	0.83	1
