@@ -16,28 +16,6 @@ library(reshape2)
 
 ```
 
-```{r}
-
-getCpGcontextInref <- function(reference, patternToFind = "CG"){
-  
-  list_CpGTable <- lapply(seq_along(reference), function(x){
-  
-      currentChrmName <- strsplit(names(reference[x]), " ")[[1]][1]
-  
-        chrm_pattern_table <- as.data.frame(matchPattern(pattern = patternToFind, subject = reference[[x]])@ranges)
-  
-      chrm_pattern_table$chrm <-rep(currentChrmName, nrow(chrm_pattern_table))
-      
-      return(chrm_pattern_table)
-
-  })
-AllChrmCpGTable <- do.call(rbind, list_CpGTable)
-  
-
-}
-
-```
-
 
 
 # LOAD Pacbio run1 & 2 result

@@ -6,8 +6,6 @@ output: html_document
 ---
 
 
-
-
 ```{r, include=FALSE}
 library(data.table)
 library(Biostrings)
@@ -15,8 +13,6 @@ library(ggplot2)
 library(DT)
 library(reshape2)
 ```
-
-
 
 
 ### LOAD megalodon both runs results
