@@ -2,14 +2,10 @@
 title: "Sus Scrofa - Compare BS vs EMSEQ vs MEGALODON calls"
 author: "P_Terzian"
 date: "`r Sys.Date()`"
-output:
-  prettydoc::html_pretty:
-  theme: architect
-highlight: github
+output: html_document
 ---
 
 
-**This report produces a html file as well as a correlation matrix in .tsv format. The number of CpG is printed at the end of the html report.**
 
 
 ```{r, include=FALSE}
@@ -18,60 +14,6 @@ library(Biostrings)
 library(ggplot2)
 library(DT)
 library(reshape2)
-
-
-```
-
-
-* To make sure we are always working in the right CG context, we check CG position using the reference genome using the following two chunk of code
-* Because megalodon produces 0-based genomic position whereas nfcore/methylseq pos are 1-based, we add 1 to forward strand positions in megalodon results and remove 1 in nfcore results when merging strands.
-* Notes : % of coverage for each technologies can be calculated from the number of lines in each tables used to calculate correlation. `nrow` is the function to count the number of line in a table.
-
-
-### Function that find CG position in ref and return a data.frame
-```{r}
-
-getCpGcontextInref <- function(reference, patternToFind = "CG"){
-  
-  list_CpGTable <- lapply(seq_along(reference), function(x){
-  
-      currentChrmName <- strsplit(names(reference[x]), " ")[[1]][1]
-  
-        chrm_pattern_table <- as.data.frame(matchPattern(pattern = patternToFind, subject = reference[[x]])@ranges)
-  
-      chrm_pattern_table$chrm <-rep(currentChrmName, nrow(chrm_pattern_table))
-      
-      return(chrm_pattern_table)
-
-  })
-AllChrmCpGTable <- do.call(rbind, list_CpGTable)
-  
-
-}
-
-```
-
-
-### Load genome reference
-```{r}
-
-sus_scrofa <- readDNAStringSet("/work/project/seqoccin/epigenetique/sus_scrofa/GCA_000003025.6_Sscrofa11.1_genomic.fa")
-#chrm1_japonica$`CM003781.1 Coturnix japonica isolate 7356 chromosome 1, whole genome shotgun sequence`[CM003781[strand == "+"]$start]
-
-names_chrm <- sapply(seq_along(sus_scrofa), function(x){
-  
-      currentChrmName <- strsplit(names(sus_scrofa[x]), " ")[[1]][1]
-      
-})
-
-
-sus_scrofa_onlychrm <- sus_scrofa[grep(x = names_chrm, "^CM")]
-
-
-CG_pos_fullreference <- getCpGcontextInref(sus_scrofa)
-setDT(CG_pos_fullreference)
-nrow(CG_pos_fullreference)
-
 ```
 
 

@@ -1,16 +1,3 @@
-#!/bin/bash
-#SBATCH -p testq
-#SBATCH -J replicate_sscrofa_dpaper
-#SBATCH -o %x.%j.out
-#SBATCH -e %x.%j.err
-#SBATCH --mem=50G
-#SBATCH --cpus-per-task=2
+### need pandoc-2.1.3
 
-
-module purge
-module load system/pandoc-2.1.3
-module load system/Miniconda3-4.7.10
-
-source activate r-env
-
-Rscript -e 'rmarkdown::render("Compare_reproducibilityruns_heatmap_datapaper_no_filter_5X.Rmd")'
+Rscript -e 'rmarkdown::render("Compare_reproducibilityruns_heatmap_datapaper.Rmd")'

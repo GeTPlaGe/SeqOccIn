@@ -1,23 +1,10 @@
 ---
-title: "Compare bisulfite calls vs EMSEQ vs MEGALODON"
+title: "Seqoccin's tech correlation Coturnix"
 author: "P_Terzian"
 date: "`r Sys.Date()`"
-output:
-  prettydoc::html_pretty:
-  theme: architect
+output: html_document
 highlight: github
 ---
-
-Commande megalodon
-```
-megalodon fetch_CM003781.1_fast5/ \
-    --outputs basecalls mods \
-    --reference CM003781.1.fa \
-    --mod-motif Z CG 0 --devices 0 --processes 20 \
-    --verbose-read-progress 3 \
-    --guppy-server-path /usr/bin/guppy_basecall_server \
-    --overwrite
-```
 
 
 ```{r, include=FALSE}
@@ -51,35 +38,6 @@ AllChrmCpGTable <- do.call(rbind, list_CpGTable)
 
 ```
 
-
-### Load genome reference
-```{r}
-
-full_japonica <- readDNAStringSet("/work/project/seqoccin/data/species/coturnix_japonica/Coturnix_japonica_2.0/GCA_001577835.1_Coturnix_japonica_2.0_genomic.fa")
-#chrm1_japonica$`CM003781.1 Coturnix japonica isolate 7356 chromosome 1, whole genome shotgun sequence`[CM003781[strand == "+"]$start]
-
-names_chrm <- sapply(seq_along(full_japonica), function(x){
-  
-      currentChrmName <- strsplit(names(full_japonica[x]), " ")[[1]][1]
-      
-})
-
-
-full_japonica_onlychrm <- full_japonica[grep(x = names_chrm, "^CM")]
-
-CG_pos_fullreference <- getCpGcontextInref(full_japonica)
-nrow(CG_pos_fullreference)
-
-CG_pos_fullreference <- getCpGcontextInref(full_japonica_onlychrm)
-nrow(CG_pos_fullreference)
-setDT(CG_pos_fullreference)
-setkey(CG_pos_fullreference, chrm, start)
-
-
-rm(full_japonica)
-gc()
-
-```
 
 
 # LOAD Pacbio run1 & 2 result
@@ -282,8 +240,6 @@ correlation_matrix <- data.frame(pooledWgbs = colpooledwgbs, Emseq = colemseq, p
 rownames(correlation_matrix) <- c("pooledwgbs", "emseq","pooledONT", "hifipooled")
 
 fwrite(x = round(correlation_matrix, 2), file = "Correlation_matrix_heatmaptechdatapaper_nofilter_5X.tsv", sep = "\t")
-
-
 
 ```
 
