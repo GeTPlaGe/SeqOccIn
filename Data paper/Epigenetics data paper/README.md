@@ -1,4 +1,4 @@
-# SeqOccIn - Benchmarking of sequencing technologies for CpG methylation calling in quail (Coturnix japonica) and pig (Sus scrofa)
+# SeqOccIn - Pig and quail CpG methylation datasets from short and long read sequencing technologies
 
 The publication about these data is available here : [doi:](https://www.nature.com/articles/)
 
