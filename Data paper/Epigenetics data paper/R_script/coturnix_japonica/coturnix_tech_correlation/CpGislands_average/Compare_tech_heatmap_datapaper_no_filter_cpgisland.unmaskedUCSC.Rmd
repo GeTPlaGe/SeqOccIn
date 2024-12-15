@@ -20,7 +20,7 @@ library(reshape2)
 ### LOAD megalodon both runs results
 ```{r}
 mega_results_run1 <- fread(file = "/data/home/terzianps/seqoccin/quail/ONT_method/Seqoccin.Quail.ONT.PAE47187.modified_bases.5mC.bed", stringsAsFactors = FALSE)
-colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count2", "fraction")
 # hist(mega_results_run1$fraction)
 setkey(mega_results_run1, chrm, start)
 mega_results_run1 <- mega_results_run1[strand == "+", start := start + 1]
@@ -29,7 +29,7 @@ setkey(mega_merged1, chrm, start)
 
 
 mega_results_run2 <- fread(file = "/data/home/terzianps/seqoccin/quail/ONT_method/Seqoccin.Quail.ONT.PAE47965.modified_bases.5mC.bed", stringsAsFactors = FALSE)
-colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count2", "fraction")
 setkey(mega_results_run2, chrm, start)
 mega_results_run2 <- mega_results_run2[strand == "+", start := start + 1]
 mega_merged2 <- mega_results_run2[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]

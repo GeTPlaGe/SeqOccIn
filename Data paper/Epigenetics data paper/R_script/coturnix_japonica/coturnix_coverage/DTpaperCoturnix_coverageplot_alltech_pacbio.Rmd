@@ -65,7 +65,7 @@ setkey(CG_pos_fullreference, chrm, start)
 # LOAD megalodon both runs results
 ```{r}
 mega_results_run1 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PromethION_PAE47187_Promethion_PAE47965_natifs/megalodon_calling/2022_last_calls_with_bam_fastq_mod/coturnix_ref_PAE47187/modified_bases.5mC.bed", stringsAsFactors = FALSE)
-colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+colnames(mega_results_run1) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count2", "fraction")
 setkey(mega_results_run1, chrm, start)
 mega_results_run1 <- mega_results_run1[strand == "+", start := start + 1]
 mega_merged1 <- mega_results_run1[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
@@ -73,7 +73,7 @@ setkey(mega_merged1, chrm, start)
 
 
 mega_results_run2 <- fread(file = "/work/project/seqoccin/epigenetique/coturnix_japonica/PromethION_PAE47187_Promethion_PAE47965_natifs/megalodon_calling/2022_last_calls_with_bam_fastq_mod/coturnix_ref_PAE47965/modified_bases.5mC.bed", stringsAsFactors = FALSE)
-colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count", "fraction")
+colnames(mega_results_run2) <- c("chrm", "start", "stop", "score", "count", "strand", "start2", "stop2", "Idonknow", "count2", "fraction")
 setkey(mega_results_run2, chrm, start)
 mega_results_run2 <- mega_results_run2[strand == "+", start := start + 1]
 mega_merged2 <- mega_results_run2[, .(count = sum(count), fraction = sum(fraction) / length(fraction)), by = .(chrm, start)]
