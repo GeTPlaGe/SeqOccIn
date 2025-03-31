@@ -1,6 +1,6 @@
 # SeqOccIn - Pig and quail CpG methylation datasets from short and long read sequencing technologies
 
-The publication about these data is available here : [doi:10.1038/s41597-025-04769-4](https://doi.org/10.1038/s41597-025-04769-4))
+The publication about these data is available here : [doi:10.1038/s41597-025-04769-4](https://doi.org/10.1038/s41597-025-04769-4).
 
 All raw reads files produced from this project are available at EMBL/EBI ENA under the BioProject PRJEB55065 for quail (https://www.ebi.ac.uk/ena/browser/view/PRJEB55065) and PRJEB55066 for pig (https://www.ebi.ac.uk/ena/browser/view/PRJEB55066).
 
