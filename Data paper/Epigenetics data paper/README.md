@@ -10,7 +10,7 @@ Used reference assemblies were Coturnix japonica version 2.0 available on https:
 
 ## CODE USAGE
 
-The following scripts were run to produce the plots found in [seqoccin DNA methylation datapaper](https://www.nature.com/articles/).
+The following scripts were run to produce the plots found in [seqoccin DNA methylation datapaper](https://doi.org/10.1038/s41597-025-04769-4).
 For both samples (Coturnix Japonica, Sus scrofa), we generated plots in order to describe the quality of our CpG methylation detection with WGBS, EM-seq, ONT and PacBio.
 
 All scripts should be adapted to run in your environment. Paths to result files and reference assemblies should be modified.
